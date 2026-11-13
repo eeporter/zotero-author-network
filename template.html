@@ -1,0 +1,317 @@
+<title>Zotero Co-author Network</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: title + stat line, control bar, then a canvas stage with an author panel beside it (stacked below on phones) */
+:root {
+  --bg: #f3f6f7; --surface: #ffffff; --fg: #15212b; --muted: #5a6873; --line: #d6dee3;
+  --accent: #1d6a87; --edge: rgba(21,33,43,.15); --rest: #9fabb3; --fade: rgba(21,33,43,.06);
+  --c1: #2763a6; --c2: #c25a10; --c3: #7046c2; --c4: #2f8a4a; --c5: #b8336a; --c6: #94760a; --c7: #138585; --c8: #8a5a3c;
+  --display: 'Space Grotesk', 'Helvetica Neue', Arial, sans-serif;
+  --body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1418; --surface: #151d22; --fg: #e3e9ed; --muted: #93a2ad; --line: #26333b;
+  --accent: #62b6d4; --edge: rgba(227,233,237,.13); --rest: #52606a; --fade: rgba(227,233,237,.05);
+  --c1: #6ea8eb; --c2: #f0924c; --c3: #ab8ef2; --c4: #64c482; --c5: #ea74a2; --c6: #d9b744; --c7: #4cc6c6; --c8: #c99676;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e1418; --surface: #151d22; --fg: #e3e9ed; --muted: #93a2ad; --line: #26333b;
+  --accent: #62b6d4; --edge: rgba(227,233,237,.13); --rest: #52606a; --fade: rgba(227,233,237,.05);
+  --c1: #6ea8eb; --c2: #f0924c; --c3: #ab8ef2; --c4: #64c482; --c5: #ea74a2; --c6: #d9b744; --c7: #4cc6c6; --c8: #c99676;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1400px; margin: 0 auto; padding-block: 24px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px; }
+header { display: grid; gap: 4px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: 1.75rem; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.stats { display: flex; flex-wrap: wrap; gap: 4px 20px; color: var(--muted); font-family: var(--mono); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.stats b { color: var(--fg); font-weight: 500; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field label { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+input, select, button { font: inherit; color: var(--fg); }
+input[type=search], select { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; }
+input[type=search] { width: min(320px, 80vw); }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.stage { position: relative; height: clamp(420px, 74vh, 900px); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+canvas.dragging { cursor: grabbing; }
+.hint { position: absolute; left: 12px; bottom: 10px; font-size: .72rem; color: var(--muted); pointer-events: none; }
+.tip { position: absolute; pointer-events: none; background: var(--fg); color: var(--bg); padding: 5px 9px; border-radius: 5px; font-size: .78rem; white-space: nowrap; transform: translate(10px, -130%); }
+
+aside { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 14px; min-width: 0; max-height: clamp(420px, 74vh, 900px); overflow-y: auto; }
+aside h2 { font-family: var(--display); font-weight: 600; font-size: 1.15rem; margin: 0; text-wrap: balance; }
+aside h3 { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+.meta { font-family: var(--mono); font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+ol.titles { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .85rem; }
+ul.people { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+ul.people button { width: 100%; display: flex; justify-content: space-between; gap: 8px; background: none; border: 0; padding: 4px 6px; border-radius: 5px; cursor: pointer; text-align: left; }
+ul.people button:hover { background: var(--fade); color: var(--accent); }
+ul.people .n { font-family: var(--mono); font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; }
+.note { font-size: .78rem; color: var(--muted); margin: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Zotero Co-author Network</h1>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="controls">
+    <div class="field">
+      <label for="q">Find an author</label>
+      <input type="search" id="q" list="names" placeholder="e.g. Kate Starbird" autocomplete="off">
+      <datalist id="names"></datalist>
+    </div>
+    <div class="field">
+      <label for="minc">Show clusters with</label>
+      <select id="minc">
+        <option value="1">Any size (all authors)</option>
+        <option value="3">3+ authors</option>
+        <option value="6">6+ authors</option>
+        <option value="12">12+ authors</option>
+        <option value="30">30+ authors</option>
+      </select>
+    </div>
+    <button class="btn" id="fit" type="button">Fit to view</button>
+  </div>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <canvas id="cv" aria-label="Co-authorship network of authors in My Library"></canvas>
+      <div class="tip" id="tip" hidden></div>
+      <div class="hint">Scroll or pinch to zoom · drag to pan · click an author</div>
+    </div>
+    <aside id="panel" aria-live="polite"></aside>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+const DATA = __DATA__;
+
+// ---------- data ----------
+const nodes = DATA.n.map(([name, papers, titles], i) => ({ i, name, papers, titles }));
+const links = DATA.l.map(([s, t, w]) => ({ s, t, w }));
+const adj = nodes.map(() => new Map());
+links.forEach(l => { adj[l.s].set(l.t, l.w); adj[l.t].set(l.s, l.w); });
+nodes.forEach(n => n.deg = adj[n.i].size);
+
+// connected components
+const comp = new Int32Array(nodes.length).fill(-1); const compSize = [];
+nodes.forEach(n => {
+  if (comp[n.i] >= 0) return;
+  const id = compSize.length; let size = 0; const st = [n.i]; comp[n.i] = id;
+  while (st.length) { const x = st.pop(); size++; for (const y of adj[x].keys()) if (comp[y] < 0) { comp[y] = id; st.push(y); } }
+  compSize.push(size);
+});
+const compRank = compSize.map((s, id) => id).sort((a, b) => compSize[b] - compSize[a]);
+const rankOf = new Int32Array(compSize.length); compRank.forEach((id, r) => rankOf[id] = r);
+nodes.forEach(n => { n.comp = comp[n.i]; n.csize = compSize[n.comp]; n.crank = rankOf[n.comp]; });
+
+const byName = new Map(nodes.map(n => [n.name.toLowerCase(), n]));
+const sorted = [...nodes].sort((a, b) => b.papers - a.papers || b.deg - a.deg || a.name.localeCompare(b.name));
+
+// ---------- static UI ----------
+const S = DATA.s;
+document.getElementById('stats').innerHTML =
+  `<span><b>${nodes.length.toLocaleString()}</b> authors</span>` +
+  `<span><b>${links.length.toLocaleString()}</b> co-author links</span>` +
+  `<span><b>${S.items}</b> of ${S.total} items have authors</span>` +
+  `<span><b>${compSize.length}</b> separate clusters, largest <b>${compSize[compRank[0]]}</b></span>` +
+  `<span>My Library only · group libraries excluded</span>`;
+const dl = document.getElementById('names');
+[...nodes].sort((a, b) => a.name.localeCompare(b.name)).forEach(n => { const o = document.createElement('option'); o.value = n.name; dl.appendChild(o); });
+
+// ---------- colours ----------
+let C = {};
+function readColors() {
+  const cs = getComputedStyle(document.documentElement);
+  const g = k => cs.getPropertyValue(k).trim();
+  C = { edge: g('--edge'), rest: g('--rest'), fade: g('--fade'), fg: g('--fg'), bg: g('--surface'), accent: g('--accent'), muted: g('--muted'),
+        pal: [1,2,3,4,5,6,7,8].map(i => g('--c' + i)) };
+}
+const colorOf = n => n.crank < 8 && n.csize > 2 ? C.pal[n.crank] : C.rest;
+readColors();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); draw(); renderPanel(); });
+new MutationObserver(() => { readColors(); draw(); renderPanel(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// ---------- canvas & simulation ----------
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), stage = document.getElementById('stage'), tip = document.getElementById('tip');
+let W = 0, H = 0, dpr = 1, T = d3.zoomIdentity;
+const R = n => 2.4 + 2.3 * Math.sqrt(n.papers);
+
+let vis = [], visLinks = [], sim = null, selected = null, hover = null;
+const seed = d3.randomLcg(0.42);
+nodes.forEach(n => { const a = seed() * 2 * Math.PI, r = 400 * Math.sqrt(seed()); n.x = Math.cos(a) * r; n.y = Math.sin(a) * r; });
+
+function build(minc) {
+  vis = nodes.filter(n => n.csize >= minc);
+  const on = new Set(vis.map(n => n.i));
+  visLinks = links.filter(l => on.has(l.s)).map(l => ({ source: nodes[l.s], target: nodes[l.t], w: l.w }));
+  if (sim) sim.stop();
+  sim = d3.forceSimulation(vis).randomSource(seed)
+    .force('link', d3.forceLink(visLinks).distance(l => 14 + 4 / l.w).strength(.7))
+    .force('charge', d3.forceManyBody().strength(-16).distanceMax(260))
+    .force('collide', d3.forceCollide(n => R(n) + 1.5))
+    .force('x', d3.forceX(0).strength(.045)).force('y', d3.forceY(0).strength(.045))
+    .stop();
+  for (let k = 0; k < 220; k++) sim.tick();
+  sim.alpha(.08).on('tick', draw).restart();
+  fit(false);
+}
+
+function resize() {
+  const r = stage.getBoundingClientRect(); dpr = window.devicePixelRatio || 1;
+  W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; draw();
+}
+
+function labelMin(k) { return k < 0.9 ? 7 : k < 1.6 ? 4 : k < 3 ? 2 : 1; }
+
+function draw() {
+  if (!W) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.translate(T.x, T.y); ctx.scale(T.k, T.k);
+  const nb = selected ? adj[selected.i] : null;
+  const inFocus = n => !selected || n === selected || nb.has(n.i);
+  // edges
+  ctx.lineCap = 'round';
+  for (const l of visLinks) {
+    const hot = selected && (l.source === selected || l.target === selected);
+    ctx.strokeStyle = selected ? (hot ? C.accent : C.fade) : C.edge;
+    ctx.lineWidth = (hot ? 1.6 : 0.8) * Math.min(1 + (l.w - 1) * 0.8, 4) / Math.sqrt(T.k);
+    ctx.beginPath(); ctx.moveTo(l.source.x, l.source.y); ctx.lineTo(l.target.x, l.target.y); ctx.stroke();
+  }
+  // nodes
+  for (const n of vis) {
+    ctx.globalAlpha = inFocus(n) ? 1 : 0.18;
+    ctx.fillStyle = colorOf(n); ctx.beginPath(); ctx.arc(n.x, n.y, R(n), 0, 2 * Math.PI); ctx.fill();
+    if (n === selected || n === hover) { ctx.lineWidth = 2 / T.k; ctx.strokeStyle = C.fg; ctx.stroke(); }
+  }
+  ctx.globalAlpha = 1; ctx.restore();
+  // labels in screen space
+  const min = labelMin(T.k);
+  ctx.font = '500 11px Inter, system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  for (const n of vis) {
+    const show = selected ? inFocus(n) : n.papers >= min;
+    if (!show && n !== hover) continue;
+    const x = T.applyX(n.x), y = T.applyY(n.y);
+    if (x < -80 || x > W + 80 || y < -20 || y > H + 20) continue;
+    const tx = x + R(n) * T.k + 4;
+    ctx.lineWidth = 3; ctx.strokeStyle = C.bg; ctx.strokeText(n.name, tx, y);
+    ctx.fillStyle = n === selected ? C.accent : C.fg; ctx.fillText(n.name, tx, y);
+  }
+}
+
+function fit(animate = true) {
+  const pts = selected ? [selected, ...[...adj[selected.i].keys()].map(i => nodes[i])] : vis;
+  if (!pts.length || !W) return;
+  const [x0, x1] = d3.extent(pts, n => n.x), [y0, y1] = d3.extent(pts, n => n.y);
+  const pad = 60, k = Math.min(8, 0.95 * Math.min((W - pad) / (x1 - x0 + 1), (H - pad) / (y1 - y0 + 1)));
+  const t = d3.zoomIdentity.translate(W / 2, H / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  d3.select(cv).transition().duration(animate && !reduce ? 600 : 0).call(zoom.transform, t);
+}
+
+const zoom = d3.zoom().scaleExtent([0.1, 14])
+  .on('start', e => { if (e.sourceEvent && e.sourceEvent.type === 'mousedown') cv.classList.add('dragging'); })
+  .on('zoom', e => { T = e.transform; draw(); })
+  .on('end', () => cv.classList.remove('dragging'));
+d3.select(cv).call(zoom).on('dblclick.zoom', null);
+
+function pick(ev) {
+  const r = cv.getBoundingClientRect(), [x, y] = T.invert([ev.clientX - r.left, ev.clientY - r.top]);
+  const n = sim.find(x, y, 14 / T.k + 6);
+  return n && Math.hypot(n.x - x, n.y - y) <= R(n) + 8 / T.k ? n : null;
+}
+cv.addEventListener('mousemove', ev => {
+  const n = pick(ev);
+  if (n !== hover) { hover = n; draw(); }
+  if (n) {
+    const r = cv.getBoundingClientRect();
+    tip.hidden = false; tip.style.left = (ev.clientX - r.left) + 'px'; tip.style.top = (ev.clientY - r.top) + 'px';
+    tip.textContent = `${n.name} · ${n.papers} item${n.papers > 1 ? 's' : ''} · ${n.deg} co-author${n.deg === 1 ? '' : 's'}`;
+    cv.style.cursor = 'pointer';
+  } else { tip.hidden = true; cv.style.cursor = ''; }
+});
+cv.addEventListener('mouseleave', () => { hover = null; tip.hidden = true; draw(); });
+let downAt = null;
+cv.addEventListener('pointerdown', ev => downAt = [ev.clientX, ev.clientY]);
+cv.addEventListener('pointerup', ev => {
+  if (!downAt || Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) > 4) return;
+  select(pick(ev), false);
+});
+
+// ---------- selection & panel ----------
+const panel = document.getElementById('panel');
+function el(tag, props = {}, ...kids) { const e = document.createElement(tag); Object.assign(e, props); kids.forEach(k => e.append(k)); return e; }
+function personList(list, countFn) {
+  const ul = el('ul', { className: 'people' });
+  list.forEach(n => {
+    const b = el('button', { type: 'button' });
+    const left = el('span'); const d = el('span', { className: 'dot' }); d.style.background = colorOf(n);
+    left.append(d, n.name);
+    b.append(left, el('span', { className: 'n', textContent: countFn(n) }));
+    b.onclick = () => select(n, true);
+    ul.append(el('li', {}, b));
+  });
+  return ul;
+}
+function renderPanel() {
+  panel.replaceChildren();
+  if (!selected) {
+    panel.append(el('h2', { textContent: 'Most frequent authors' }),
+      el('p', { className: 'note', textContent: 'Number of items in My Library that list each person as an author. Colors mark the eight largest connected clusters.' }),
+      personList(sorted.slice(0, 15), n => n.papers),
+      el('p', { className: 'note', textContent: `Built from the "author" field of ${S.items} items in your personal Zotero library. Editors, translators and other contributor roles are left out. Names are matched on last name plus first name, and an initial is merged with a full first name when only one person fits.` }));
+    return;
+  }
+  const n = selected;
+  const co = [...adj[n.i].entries()].sort((a, b) => b[1] - a[1] || nodes[a[0]].name.localeCompare(nodes[b[0]].name));
+  const back = el('button', { type: 'button', className: 'btn', textContent: '← All authors' }); back.onclick = () => select(null, true);
+  panel.append(back, el('h2', { textContent: n.name }),
+    el('div', { className: 'meta', textContent: `${n.papers} item${n.papers > 1 ? 's' : ''} · ${n.deg} co-author${n.deg === 1 ? '' : 's'} · cluster of ${n.csize}` }));
+  const ti = el('div', {}, el('h3', { textContent: 'In your library' }));
+  const ol = el('ol', { className: 'titles' }); n.titles.forEach(t => ol.append(el('li', { textContent: t })));
+  ti.append(ol); if (n.papers > n.titles.length) ti.append(el('p', { className: 'note', textContent: `+ ${n.papers - n.titles.length} more` }));
+  panel.append(ti);
+  if (co.length) {
+    const box = el('div', {}, el('h3', { textContent: 'Co-authors (shared items)' }));
+    const m = new Map(co); box.append(personList(co.map(([i]) => nodes[i]), x => m.get(x.i)));
+    panel.append(box);
+  } else panel.append(el('p', { className: 'note', textContent: 'No co-authors in your library: every item lists this person alone.' }));
+}
+function select(n, zoomTo) {
+  if (n && !vis.includes(n)) { minSel.value = '1'; build(1); }
+  selected = n; renderPanel(); draw();
+  if (zoomTo) fit(true);
+}
+
+const minSel = document.getElementById('minc');
+minSel.addEventListener('change', () => { if (selected && selected.csize < +minSel.value) { selected = null; renderPanel(); } build(+minSel.value); });
+document.getElementById('fit').addEventListener('click', () => fit(true));
+const q = document.getElementById('q');
+q.addEventListener('change', () => { const n = byName.get(q.value.trim().toLowerCase()); if (n) select(n, true); });
+q.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const v = q.value.trim().toLowerCase(); if (!v) return;
+  const n = byName.get(v) || sorted.find(x => x.name.toLowerCase().includes(v));
+  if (n) { q.value = n.name; select(n, true); }
+});
+
+new ResizeObserver(() => { resize(); }).observe(stage);
+resize(); build(1); renderPanel();
+</script>

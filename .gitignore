@@ -1,0 +1,3 @@
+graph.json
+*.sqlite
+.DS_Store
