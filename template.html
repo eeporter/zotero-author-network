@@ -133,7 +133,7 @@ const S = DATA.s;
 document.getElementById('stats').innerHTML =
   `<span><b>${nodes.length.toLocaleString()}</b> authors</span>` +
   `<span><b>${links.length.toLocaleString()}</b> co-author links</span>` +
-  `<span><b>${S.items}</b> of ${S.total} items have authors</span>` +
+  `<span><b>${S.papers}</b> papers (${S.items} of ${S.total} items have authors; duplicates merged)</span>` +
   `<span><b>${compSize.length}</b> separate clusters, largest <b>${compSize[compRank[0]]}</b></span>` +
   `<span>My Library only · group libraries excluded</span>`;
 const dl = document.getElementById('names');
@@ -246,7 +246,7 @@ cv.addEventListener('mousemove', ev => {
   if (n) {
     const r = cv.getBoundingClientRect();
     tip.hidden = false; tip.style.left = (ev.clientX - r.left) + 'px'; tip.style.top = (ev.clientY - r.top) + 'px';
-    tip.textContent = `${n.name} · ${n.papers} item${n.papers > 1 ? 's' : ''} · ${n.deg} co-author${n.deg === 1 ? '' : 's'}`;
+    tip.textContent = `${n.name} · ${n.papers} paper${n.papers > 1 ? 's' : ''} · ${n.deg} co-author${n.deg === 1 ? '' : 's'}`;
     cv.style.cursor = 'pointer';
   } else { tip.hidden = true; cv.style.cursor = ''; }
 });
@@ -277,16 +277,16 @@ function renderPanel() {
   panel.replaceChildren();
   if (!selected) {
     panel.append(el('h2', { textContent: 'Most frequent authors' }),
-      el('p', { className: 'note', textContent: 'Number of items in My Library that list each person as an author. Colors mark the eight largest connected clusters.' }),
+      el('p', { className: 'note', textContent: 'Number of papers in My Library that list each person as an author, at any position. Duplicate Zotero items count once. Colors mark the eight largest connected clusters.' }),
       personList(sorted.slice(0, 15), n => n.papers),
-      el('p', { className: 'note', textContent: `Built from the "author" field of ${S.items} items in your personal Zotero library. Editors, translators and other contributor roles are left out. Names are matched on last name plus first name, and an initial is merged with a full first name when only one person fits.` }));
+      el('p', { className: 'note', textContent: `Built from the "author" field of ${S.items} items in your personal Zotero library. Items with the same title and first author are merged into one paper, leaving ${S.papers}. Editors, translators and other contributor roles are left out. Names are matched on last name plus first name, and an initial is merged with a full first name when only one person fits.` }));
     return;
   }
   const n = selected;
   const co = [...adj[n.i].entries()].sort((a, b) => b[1] - a[1] || nodes[a[0]].name.localeCompare(nodes[b[0]].name));
   const back = el('button', { type: 'button', className: 'btn', textContent: '← All authors' }); back.onclick = () => select(null, true);
   panel.append(back, el('h2', { textContent: n.name }),
-    el('div', { className: 'meta', textContent: `${n.papers} item${n.papers > 1 ? 's' : ''} · ${n.deg} co-author${n.deg === 1 ? '' : 's'} · cluster of ${n.csize}` }));
+    el('div', { className: 'meta', textContent: `${n.papers} paper${n.papers > 1 ? 's' : ''} · ${n.deg} co-author${n.deg === 1 ? '' : 's'} · cluster of ${n.csize}` }));
   const np = n.titles.length;
   const ti = el('div', {}, el('h3', { textContent: `Papers in your library (${np})` }));
   const ul = el('ul', { className: 'titles' });
@@ -296,13 +296,14 @@ function renderPanel() {
     ul.append(el('li', {}, el('span', { className: 'yr', textContent: year || 'n.d.' }), body));
   });
   ti.append(ul);
-  if (n.papers > np) ti.append(el('p', { className: 'note', textContent: `Zotero has ${n.papers} items for these ${np} papers; duplicates are listed once.` }));
+  const copies = n.titles.reduce((s, r) => s + r[2], 0);
+  if (copies > np) ti.append(el('p', { className: 'note', textContent: `Zotero has ${copies} items for these ${np} papers; each paper counts once.` }));
   panel.append(ti);
   if (co.length) {
-    const box = el('div', {}, el('h3', { textContent: 'Co-authors (shared items)' }));
+    const box = el('div', {}, el('h3', { textContent: 'Co-authors (shared papers)' }));
     const m = new Map(co); box.append(personList(co.map(([i]) => nodes[i]), x => m.get(x.i)));
     panel.append(box);
-  } else panel.append(el('p', { className: 'note', textContent: 'No co-authors in your library: every item lists this person alone.' }));
+  } else panel.append(el('p', { className: 'note', textContent: 'No co-authors in your library: every paper lists this person alone.' }));
 }
 function select(n, zoomTo) {
   if (n && !vis.includes(n)) { minSel.value = '1'; build(1); }

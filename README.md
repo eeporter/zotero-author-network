@@ -4,8 +4,9 @@ Interactive co-authorship graph of every author in my personal Zotero library ("
 
 **Live page:** https://eeporter.github.io/zotero-author-network/
 
-- Nodes are authors; size = number of items in the library that list them as an author.
-- Edges join authors who share an item; thicker edges = more shared items.
+- Nodes are authors; size = number of papers in the library that list them as an author (any position).
+- Edges join authors who share a paper; thicker edges = more shared papers.
+- Duplicate Zotero items (same title and first author) are merged into one paper before counting.
 - Colors mark the eight largest connected clusters.
 - Only the `author` creator role is used (no editors, translators, etc.). Deleted items are skipped.
 - Names are matched on last name + first name; an initial-only form is merged into a full first name when exactly one person fits.
