@@ -54,7 +54,10 @@ aside { background: var(--surface); border: 1px solid var(--line); border-radius
 aside h2 { font-family: var(--display); font-weight: 600; font-size: 1.15rem; margin: 0; text-wrap: balance; }
 aside h3 { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
 .meta { font-family: var(--mono); font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-ol.titles { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .85rem; }
+ul.titles { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: .85rem; }
+ul.titles li { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); gap: 8px; align-items: baseline; }
+ul.titles .yr { font-family: var(--mono); font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+ul.titles .dup { font-family: var(--mono); font-size: .7rem; color: var(--muted); white-space: nowrap; }
 ul.people { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 ul.people button { width: 100%; display: flex; justify-content: space-between; gap: 8px; background: none; border: 0; padding: 4px 6px; border-radius: 5px; cursor: pointer; text-align: left; }
 ul.people button:hover { background: var(--fade); color: var(--accent); }
@@ -220,7 +223,7 @@ function fit(animate = true) {
   const pts = selected ? [selected, ...[...adj[selected.i].keys()].map(i => nodes[i])] : vis;
   if (!pts.length || !W) return;
   const [x0, x1] = d3.extent(pts, n => n.x), [y0, y1] = d3.extent(pts, n => n.y);
-  const pad = 60, k = Math.min(8, 0.95 * Math.min((W - pad) / (x1 - x0 + 1), (H - pad) / (y1 - y0 + 1)));
+  const pad = 60, k = Math.min(4, 0.95 * Math.min((W - pad) / (x1 - x0 + 1), (H - pad) / (y1 - y0 + 1)));
   const t = d3.zoomIdentity.translate(W / 2, H / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   d3.select(cv).transition().duration(animate && !reduce ? 600 : 0).call(zoom.transform, t);
@@ -284,9 +287,16 @@ function renderPanel() {
   const back = el('button', { type: 'button', className: 'btn', textContent: '← All authors' }); back.onclick = () => select(null, true);
   panel.append(back, el('h2', { textContent: n.name }),
     el('div', { className: 'meta', textContent: `${n.papers} item${n.papers > 1 ? 's' : ''} · ${n.deg} co-author${n.deg === 1 ? '' : 's'} · cluster of ${n.csize}` }));
-  const ti = el('div', {}, el('h3', { textContent: 'In your library' }));
-  const ol = el('ol', { className: 'titles' }); n.titles.forEach(t => ol.append(el('li', { textContent: t })));
-  ti.append(ol); if (n.papers > n.titles.length) ti.append(el('p', { className: 'note', textContent: `+ ${n.papers - n.titles.length} more` }));
+  const np = n.titles.length;
+  const ti = el('div', {}, el('h3', { textContent: `Papers in your library (${np})` }));
+  const ul = el('ul', { className: 'titles' });
+  n.titles.forEach(([year, title, copies]) => {
+    const body = el('span', { textContent: title + ' ' });
+    if (copies > 1) body.append(el('span', { className: 'dup', textContent: `saved ${copies}×` }));
+    ul.append(el('li', {}, el('span', { className: 'yr', textContent: year || 'n.d.' }), body));
+  });
+  ti.append(ul);
+  if (n.papers > np) ti.append(el('p', { className: 'note', textContent: `Zotero has ${n.papers} items for these ${np} papers; duplicates are listed once.` }));
   panel.append(ti);
   if (co.length) {
     const box = el('div', {}, el('h3', { textContent: 'Co-authors (shared items)' }));
@@ -297,6 +307,9 @@ function renderPanel() {
 function select(n, zoomTo) {
   if (n && !vis.includes(n)) { minSel.value = '1'; build(1); }
   selected = n; renderPanel(); draw();
+  panel.scrollTop = 0;
+  // On narrow screens the panel sits below the graph, so bring it into view.
+  if (n && matchMedia('(max-width: 860px)').matches) panel.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   if (zoomTo) fit(true);
 }
 

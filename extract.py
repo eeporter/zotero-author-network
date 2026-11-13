@@ -40,7 +40,7 @@ for iid,auths in items.items():
     seen=set()
     for k,n in auths:
         if k in seen: continue
-        seen.add(k); counts[k]+=1; papers[k].append(meta[iid][0])
+        seen.add(k); counts[k]+=1; papers[k].append([meta[iid][1], meta[iid][0]])
         if k not in display or len(n)>len(display[k]): display[k]=n
 edges=collections.Counter()
 big=0
@@ -52,6 +52,6 @@ print('items with authors',len(items),'of',total_items,'authors',len(counts),'ed
 print(counts.most_common(15))
 deg=collections.Counter()
 for (a,b) in edges: deg[a]+=1; deg[b]+=1
-json.dump({'nodes':[{'id':k,'name':display[k],'papers':counts[k],'titles':papers[k][:8]} for k in counts],
+json.dump({'nodes':[{'id':k,'name':display[k],'papers':counts[k],'titles':papers[k]} for k in counts],
  'links':[{'source':a,'target':b,'w':w} for (a,b),w in edges.items()],
  'stats':{'items':len(items),'total':total_items,'big':big}}, open(S+'/graph.json','w'))
