@@ -155,7 +155,7 @@ new MutationObserver(() => { readColors(); draw(); renderPanel(); }).observe(doc
 
 // ---------- canvas & simulation ----------
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), stage = document.getElementById('stage'), tip = document.getElementById('tip');
-let W = 0, H = 0, dpr = 1, T = d3.zoomIdentity;
+let W = 0, H = 0, dpr = 1, T = d3.zoomIdentity, userMoved = false;
 const R = n => 2.4 + 2.3 * Math.sqrt(n.papers);
 
 let vis = [], visLinks = [], sim = null, selected = null, hover = null;
@@ -232,7 +232,7 @@ function fit(animate = true) {
 
 const zoom = d3.zoom().scaleExtent([0.1, 14])
   .on('start', e => { if (e.sourceEvent && e.sourceEvent.type === 'mousedown') cv.classList.add('dragging'); })
-  .on('zoom', e => { T = e.transform; draw(); })
+  .on('zoom', e => { T = e.transform; if (e.sourceEvent) userMoved = true; draw(); })
   .on('end', () => cv.classList.remove('dragging'));
 d3.select(cv).call(zoom).on('dblclick.zoom', null);
 
@@ -316,7 +316,8 @@ q.addEventListener('keydown', e => {
   if (n) { q.value = n.name; select(n, true); }
 });
 
-new ResizeObserver(() => { resize(); }).observe(stage);
+// Refit whenever the stage changes size, until the viewer pans or zooms themselves.
+new ResizeObserver(() => { resize(); if (sim && !userMoved) fit(false); }).observe(stage);
 resize(); build(1); renderPanel();
 </script>
 
